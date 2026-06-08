@@ -3,7 +3,8 @@ data/
 *.csv
 *.db
 
-# Environment
+# Environments
+venv/
 .venv/
 .env
 
