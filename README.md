@@ -1,12 +1,21 @@
-# Fintech Review Analytics
+# 📊 Fintech Review Analytics — Task 1
 
-A data engineering and NLP pipeline analyzing Google Play Store reviews of Ethiopian banking apps (CBE, BOA, Dashen).
+## 📌 Project Overview
+This project analyzes Google Play Store reviews of Ethiopian banking apps to extract customer sentiment and identify key user experience issues.
 
-## Project Goals
-- Scrape user reviews from Google Play Store
-- Analyze sentiment and themes
-- Store structured data in PostgreSQL
-- Generate insights for fintech product teams
+Banks analyzed:
+- Commercial Bank of Ethiopia (CBE)
+- Bank of Abyssinia (BOA)
+- Dashen Bank
 
-## Tech Stack
-Python, Pandas, NLP, PostgreSQL, GitHub Actions
+---
+
+## 🎯 Task 1 Objective
+- Scrape Google Play Store reviews
+- Clean and preprocess the dataset
+- Perform basic EDA
+- Prepare data for NLP analysis
+
+---
+
+## 🏗️ Project Structure
