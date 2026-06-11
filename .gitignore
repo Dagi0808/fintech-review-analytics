@@ -13,4 +13,4 @@ __pycache__/
 *.pyc
 
 # Jupyter
-.ipynb_checkpoints/
+.ipynb_checkpoints/.env
