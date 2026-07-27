@@ -182,21 +182,21 @@ See `.github/workflows/ci.yml`.
 
 ---
 
-## 🖼️ Screenshots
+## 🖼️ Visualisations
 
-### Dashboard — Overview Tab
-> Run `streamlit run dashboard/app.py` to see the live dashboard.
-> The dashboard loads with demo data automatically if the pipeline has not been run.
+### Overview — Key Metrics
+![KPI Overview](reports/figures/kpi_overview.png)
 
-| Tab | Description |
-|-----|-------------|
-| Overview | KPI cards: total reviews, % positive, avg rating, top complaint |
-| Sentiment | Pie chart + bank comparison bar chart |
-| Ratings | Average rating per bank + distribution histogram |
-| Themes | Complaint frequency + breakdown by bank |
-| Reviews | Searchable, filterable review table |
+### Sentiment Analysis
+![Sentiment Analysis](reports/figures/sentiment_analysis.png)
 
-*Screenshots will be added after running the dashboard with real data.*
+### Rating Analysis
+![Rating Analysis](reports/figures/ratings_analysis.png)
+
+### Customer Complaint Themes
+![Theme Analysis](reports/figures/theme_analysis.png)
+
+> Run `streamlit run dashboard/app.py` for the full interactive dashboard with filters, business insights, and a searchable review table.
 
 ---
 

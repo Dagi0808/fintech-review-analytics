@@ -1,0 +1,397 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body { font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; line-height: 1.7; color: #222; }
+h1 { color: #1a3a5c; border-bottom: 2px solid #1a3a5c; padding-bottom: 8px; }
+h2 { color: #1a3a5c; margin-top: 2em; }
+h3 { color: #2c5282; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th { background: #1a3a5c; color: white; padding: 8px 12px; text-align: left; }
+td { padding: 7px 12px; border-bottom: 1px solid #ddd; }
+tr:nth-child(even) { background: #f5f8fc; }
+code { background: #f0f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f0f4f8; padding: 16px; border-radius: 5px; overflow-x: auto; }
+blockquote { border-left: 4px solid #1a3a5c; margin: 0; padding: 8px 16px; background: #f5f8fc; }
+</style></head><body><h1 id="fintech-review-analytics-transforming-ethiopian-bank-customer-feedback-into-business-intelligence">Fintech Review Analytics: Transforming Ethiopian Bank Customer Feedback into Business Intelligence</h1>
+<p><strong>Author:</strong> Dagmawi<br />
+<strong>Program:</strong> 10 Academy — Week 12 Capstone<br />
+<strong>Date:</strong> July 2026<br />
+<strong>GitHub:</strong> https://github.com/Dagi0808/fintech-review-analytics  </p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#1-business-problem">Business Problem</a></li>
+<li><a href="#2-dataset">Dataset</a></li>
+<li><a href="#3-solution-architecture">Solution Architecture</a></li>
+<li><a href="#4-engineering-improvements">Engineering Improvements</a></li>
+<li><a href="#5-model-and-methods">Model and Methods</a></li>
+<li><a href="#6-dashboard">Dashboard</a></li>
+<li><a href="#7-testing-and-cicd">Testing and CI/CD</a></li>
+<li><a href="#8-key-results-and-business-impact">Key Results and Business Impact</a></li>
+<li><a href="#9-lessons-learned">Lessons Learned</a></li>
+<li><a href="#10-future-work">Future Work</a></li>
+</ol>
+<hr />
+<h2 id="1-business-problem">1. Business Problem</h2>
+<p>Ethiopian banks are experiencing rapid growth in mobile banking adoption. The Commercial Bank of Ethiopia (CBE), Bank of Abyssinia (BOA), and Dashen Bank collectively serve millions of customers through their mobile apps. Every day, these customers leave feedback on Google Play — complaints, praise, and feature requests.</p>
+<p>The problem is scale. A bank's customer experience team cannot manually read thousands of reviews per month. Without a systematic approach, critical signals get missed:</p>
+<ul>
+<li>A surge in login failures goes unnoticed for weeks</li>
+<li>Transaction errors accumulate without engineering prioritisation</li>
+<li>Competitor banks improve while problems go untracked</li>
+</ul>
+<p><strong>The business question this project answers:</strong></p>
+<blockquote>
+<p>Which bank has the most dissatisfied customers, what specific issues drive that dissatisfaction, and what should engineering teams fix first?</p>
+</blockquote>
+<p>This is directly relevant to finance sector employers because it demonstrates the ability to turn unstructured customer data into prioritised, actionable intelligence — a core capability in any data-driven financial institution.</p>
+<hr />
+<h2 id="2-dataset">2. Dataset</h2>
+<p><strong>Source:</strong> Google Play Store reviews, scraped using <code>google-play-scraper</code></p>
+<p><strong>Banks covered:</strong>
+| Bank | App ID |
+|------|--------|
+| Commercial Bank of Ethiopia (CBE) | com.combanketh.mobilebanking |
+| Bank of Abyssinia (BOA) | com.boa.boaMobileBanking |
+| Dashen Bank | com.dashen.dashensuperapp |</p>
+<p><strong>Size:</strong> 1,502 reviews total (~500 per bank)</p>
+<p><strong>Fields collected:</strong>
+- <code>review</code> — customer review text (English)
+- <code>rating</code> — star rating (1–5)
+- <code>date</code> — review submission date
+- <code>bank</code> — bank name
+- <code>source</code> — "Google Play"</p>
+<p><strong>Preprocessing steps applied:</strong>
+1. Remove duplicate reviews (same text + same bank)
+2. Drop null or empty reviews
+3. Validate ratings (keep only 1–5)
+4. Normalise bank name casing
+5. Add word count feature (<code>review_length</code>)</p>
+<p>After preprocessing, the dataset retained all 1,502 reviews with no significant data loss, confirming good initial data quality from the scraper.</p>
+<hr />
+<h2 id="3-solution-architecture">3. Solution Architecture</h2>
+<p>The pipeline follows a linear sequence of modular steps, each in its own Python module:</p>
+<pre><code>Google Play Store
+       │
+       ▼
+scripts/scrape_reviews.py     ← Collects raw reviews
+       │
+       ▼
+src/preprocessing.py          ← Cleans and validates
+       │
+       ▼
+src/sentiment_analysis.py     ← DistilBERT sentiment classification
+       │
+       ▼
+src/theme_extraction.py       ← Keyword-based complaint theme assignment
+       │
+       ▼
+src/db_insert.py              ← Loads into PostgreSQL
+       │
+       ▼
+dashboard/app.py              ← Streamlit interactive dashboard
+src/explainability.py         ← SHAP model explanations
+</code></pre>
+<p>All configuration (model names, file paths, DB credentials, thresholds) is centralised in <code>src/config.py</code> using Python <code>@dataclass</code> objects. This means changing the sentiment model or output path requires editing one file, not searching through the codebase.</p>
+<p>The full pipeline can be run with a single command:</p>
+<pre><code class="language-bash">python -m src.main
+</code></pre>
+<p>Or step by step:</p>
+<pre><code class="language-bash">python -m src.main --step preprocess
+python -m src.main --step sentiment
+python -m src.main --step themes
+python -m src.main --with-db    # includes PostgreSQL insertion
+</code></pre>
+<hr />
+<h2 id="4-engineering-improvements">4. Engineering Improvements</h2>
+<p>This section documents the specific changes made to transform the original Week 2 project into a production-grade portfolio piece.</p>
+<h3 id="41-code-refactoring">4.1 Code Refactoring</h3>
+<p><strong>Before:</strong> The original code had flat scripts with hardcoded paths, no type hints, and mixed concerns. For example, <code>db_insert.py</code> ran database insertion at import time — meaning importing the module for testing would immediately try to connect to a database.</p>
+<p><strong>After:</strong> Every function now has:
+- Full type hints on all parameters and return values
+- Docstrings with Args/Returns/Raises documentation
+- Clear separation of concerns (load, process, save are separate functions)
+- Named constants replacing magic numbers</p>
+<p>Example — before:</p>
+<pre><code class="language-python">threshold = 0.7   # magic number, unclear meaning
+engine = create_engine(&quot;postgresql://postgres:selfmade@localhost:5432/bank_reviews&quot;)  # hardcoded
+</code></pre>
+<p>After:</p>
+<pre><code class="language-python">SENTIMENT_THRESHOLD: float = 0.7   # named constant in config.py
+
+def build_engine(config: DatabaseConfig | None = None) -&gt; Engine:
+    cfg = config or _config_from_env()   # reads from environment variables
+    return create_engine(cfg.url)
+</code></pre>
+<h3 id="42-configuration-with-dataclasses">4.2 Configuration with Dataclasses</h3>
+<p>All settings are now in <code>src/config.py</code>:</p>
+<pre><code class="language-python">@dataclass
+class SentimentConfig:
+    model_name: str = &quot;distilbert-base-uncased-finetuned-sst-2-english&quot;
+    threshold: float = 0.7
+    batch_size: int = 32
+    truncation: bool = True
+    max_length: int = 512
+
+@dataclass
+class PipelineConfig:
+    paths: PathConfig = field(default_factory=PathConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    sentiment: SentimentConfig = field(default_factory=SentimentConfig)
+</code></pre>
+<p>This means the entire pipeline is configurable without touching source code — just pass a different config object.</p>
+<h3 id="43-preprocessing-module">4.3 Preprocessing Module</h3>
+<p>A dedicated <code>src/preprocessing.py</code> module was added. The original project went from raw CSV directly to sentiment analysis with no validation step. The new preprocessing pipeline:</p>
+<ul>
+<li>Removes duplicates (same review text + same bank)</li>
+<li>Drops null and empty reviews</li>
+<li>Validates ratings are within 1–5</li>
+<li>Normalises bank names to uppercase</li>
+<li>Adds a <code>review_length</code> feature (word count)</li>
+</ul>
+<p>This matters for reliability: without these checks, a malformed input row could silently corrupt downstream sentiment scores.</p>
+<h3 id="44-database-security">4.4 Database Security</h3>
+<p>The original <code>db_insert.py</code> hardcoded database credentials directly in source code:</p>
+<pre><code class="language-python">engine = create_engine(&quot;postgresql://postgres:selfmade@localhost:5432/bank_reviews&quot;)
+</code></pre>
+<p>This is a critical security issue — credentials committed to a public GitHub repository. The new version reads from environment variables:</p>
+<pre><code class="language-python">DatabaseConfig(
+    host=os.getenv(&quot;DB_HOST&quot;, &quot;localhost&quot;),
+    password=os.getenv(&quot;DB_PASSWORD&quot;, &quot;&quot;),
+)
+</code></pre>
+<p>Credentials are now stored in <code>.env</code> (which is gitignored) and never committed.</p>
+<hr />
+<h2 id="5-model-and-methods">5. Model and Methods</h2>
+<h3 id="51-sentiment-analysis">5.1 Sentiment Analysis</h3>
+<p><strong>Model:</strong> <code>distilbert-base-uncased-finetuned-sst-2-english</code></p>
+<p>DistilBERT is a distilled version of BERT — smaller, faster, and still highly accurate for sentiment classification. It was fine-tuned on the Stanford Sentiment Treebank (SST-2) dataset, making it well-suited for English customer reviews.</p>
+<p><strong>Why this model?</strong>
+- Achieves ~91% accuracy on SST-2 benchmark
+- 40% smaller than BERT-base, suitable for deployment
+- Handles short informal text (typical of app reviews) well
+- Available via HuggingFace without additional training</p>
+<p><strong>Confidence threshold:</strong> Reviews with sentiment confidence below 0.70 are flagged. In practice, over 90% of reviews exceeded this threshold, indicating high model confidence across the dataset.</p>
+<p><strong>Processing:</strong> Reviews are batched (32 at a time) for efficiency. Each review receives:
+- <code>sentiment_label</code>: POSITIVE or NEGATIVE
+- <code>sentiment_score</code>: confidence between 0.0 and 1.0</p>
+<h3 id="52-theme-extraction">5.2 Theme Extraction</h3>
+<p>Complaint themes are identified through keyword matching against six predefined categories:</p>
+<table>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Keywords</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Account Access Issues</td>
+<td>login, password, sign in</td>
+</tr>
+<tr>
+<td>OTP &amp; Security Issues</td>
+<td>otp, code, verification</td>
+</tr>
+<tr>
+<td>Transaction Performance</td>
+<td>slow, delay, transfer, payment</td>
+</tr>
+<tr>
+<td>App Stability Issues</td>
+<td>crash, bug, error</td>
+</tr>
+<tr>
+<td>UI &amp; UX Issues</td>
+<td>ui, design, interface, navigation</td>
+</tr>
+<tr>
+<td>Feature Requests</td>
+<td>feature, fingerprint, update</td>
+</tr>
+</tbody>
+</table>
+<p>Reviews not matching any category are labelled "Other".</p>
+<p>TF-IDF analysis is also run on the corpus to identify top corpus-level keywords, which can inform future expansion of the keyword dictionary.</p>
+<h3 id="53-model-explainability-shap">5.3 Model Explainability (SHAP)</h3>
+<p>The <code>src/explainability.py</code> module provides two types of explanation:</p>
+<p><strong>Global explanation:</strong> A TF-IDF-based feature importance plot showing the most frequent terms in negative reviews. This answers: "What words most characterise customer complaints?"</p>
+<p><strong>Local explanation:</strong> Token-level SHAP values for individual reviews using <code>shap.Explainer</code> wrapped around the HuggingFace pipeline. This answers: "Why did this specific review get classified as NEGATIVE?"</p>
+<p>Example interpretation: For the review <em>"The app keeps crashing and my transfer was delayed for 3 days"</em>, SHAP highlights "crashing" and "delayed" as the primary negative signals, with "transfer" as secondary context.</p>
+<p>This transparency is particularly valued in finance, where model decisions must be auditable and explainable to non-technical stakeholders.</p>
+<hr />
+<h2 id="6-dashboard">6. Dashboard</h2>
+<p>The Streamlit dashboard (<code>dashboard/app.py</code>) provides five interactive tabs:</p>
+<h3 id="tab-1-overview">Tab 1 — Overview</h3>
+<p>Four KPI cards visible immediately on load:
+- Total reviews analysed
+- Percentage of positive reviews
+- Average rating across selected banks
+- Top complaint category (most frequent negative theme)</p>
+<p>Business insight expanders show per-bank analysis with the top complaint and a plain-English recommendation.</p>
+<h3 id="tab-2-sentiment">Tab 2 — Sentiment</h3>
+<ul>
+<li>Pie chart: overall positive/negative split</li>
+<li>Grouped bar chart: sentiment comparison across all three banks side by side</li>
+</ul>
+<h3 id="tab-3-ratings">Tab 3 — Ratings</h3>
+<ul>
+<li>Average rating bar chart per bank</li>
+<li>Rating distribution histogram (1–5 stars, coloured by bank)</li>
+</ul>
+<h3 id="tab-4-themes">Tab 4 — Themes</h3>
+<ul>
+<li>Horizontal bar chart of all themes by frequency</li>
+<li>Stacked bar chart of negative reviews broken down by theme and bank</li>
+</ul>
+<h3 id="tab-5-reviews">Tab 5 — Reviews</h3>
+<p>A searchable, filterable table of raw reviews with sentiment label, confidence score, and assigned theme.</p>
+<p><strong>Sidebar filters</strong> allow users to drill down by bank, sentiment, and rating range in real time across all tabs.</p>
+<p>The dashboard includes a demo mode — it generates synthetic data automatically if the pipeline has not been run, so it can be demonstrated without setting up PostgreSQL or running the full NLP pipeline.</p>
+<hr />
+<h2 id="7-testing-and-cicd">7. Testing and CI/CD</h2>
+<h3 id="71-test-suite">7.1 Test Suite</h3>
+<p>61 tests across 5 test files, all passing:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Tests</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_preprocessing.py</code></td>
+<td>17</td>
+<td>deduplication, null removal, rating validation, bank normalisation</td>
+</tr>
+<tr>
+<td><code>test_theme_extraction.py</code></td>
+<td>20</td>
+<td>keyword matching, text cleaning, NaN handling, theme assignment</td>
+</tr>
+<tr>
+<td><code>test_utils.py</code></td>
+<td>18</td>
+<td>text cleaning, DataFrame validation, sentiment label conversion, filtering</td>
+</tr>
+<tr>
+<td><code>test_sentiment_analysis.py</code></td>
+<td>6</td>
+<td>confidence filtering, file output</td>
+</tr>
+<tr>
+<td><code>test_output.py</code></td>
+<td>11 (skipped without data)</td>
+<td>integration tests for pipeline outputs</td>
+</tr>
+</tbody>
+</table>
+<p>Run with:</p>
+<pre><code class="language-bash">pytest tests/ -v
+# ============= 61 passed, 11 skipped in 2.84s =============
+</code></pre>
+<p>Tests are designed to be fast (no model downloads, no database connections) by using pure unit tests with in-memory DataFrames.</p>
+<h3 id="72-github-actions-cicd">7.2 GitHub Actions CI/CD</h3>
+<p><code>.github/workflows/ci.yml</code> runs automatically on every push to <code>main</code>:</p>
+<pre><code>Push to main
+     │
+     ▼
+1. Checkout code
+2. Set up Python 3.11
+3. Install pinned dependencies
+4. Run flake8 linting (max line length 100)
+5. Run pytest (all tests)
+6. Check coverage ≥ 60%
+</code></pre>
+<p>The CI badge in the README shows the current build status at a glance — a standard signal finance employers look for in production-ready repositories.</p>
+<hr />
+<h2 id="8-key-results-and-business-impact">8. Key Results and Business Impact</h2>
+<h3 id="81-bank-performance-summary">8.1 Bank Performance Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Bank</th>
+<th>Avg Rating</th>
+<th>% Positive</th>
+<th>Top Complaint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DASHEN</td>
+<td>~3.7</td>
+<td>~68%</td>
+<td>UI &amp; UX Issues</td>
+</tr>
+<tr>
+<td>BOA</td>
+<td>~3.2</td>
+<td>~54%</td>
+<td>Transaction Performance</td>
+</tr>
+<tr>
+<td>CBE</td>
+<td>~2.8</td>
+<td>~41%</td>
+<td>Account Access Issues</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-business-recommendations">8.2 Business Recommendations</h3>
+<p><strong>CBE (highest priority):</strong>
+Account Access Issues (login failures, password resets) drive the majority of negative reviews. This is fixable with targeted engineering — improved authentication flows, better error messages, and a reliable OTP delivery system. A 10% reduction in login-related complaints would likely move CBE's average rating from 2.8 to above 3.0.</p>
+<p><strong>BOA (medium priority):</strong>
+Transaction Performance issues (slow transfers, payment delays) are the primary complaint. These suggest backend infrastructure constraints. Investing in transaction processing reliability would have an outsized impact on customer satisfaction.</p>
+<p><strong>DASHEN (maintain and extend):</strong>
+DASHEN leads on satisfaction but faces UX complaints. With its strong base, investing in UI improvements and new features would extend its competitive advantage.</p>
+<h3 id="83-business-value-quantified">8.3 Business Value Quantified</h3>
+<ul>
+<li><strong>Time saved:</strong> Manual review categorisation of 1,502 reviews would take approximately 25–30 hours. This pipeline processes them in under 10 minutes.</li>
+<li><strong>Repeatability:</strong> The pipeline can be re-run weekly as new reviews arrive, giving banks a continuous feedback loop rather than a one-time snapshot.</li>
+<li><strong>Actionability:</strong> Instead of "customers are unhappy," the output is "CBE has 312 reviews mentioning login failures — this is your top engineering priority."</li>
+</ul>
+<hr />
+<h2 id="9-lessons-learned">9. Lessons Learned</h2>
+<p><strong>On engineering quality:</strong>
+The biggest lesson was how much impact proper refactoring has on a project's credibility. The original <code>db_insert.py</code> was a flat script with hardcoded credentials — something that would immediately fail a code review at any professional organisation. The refactored version with environment variables, type hints, and proper functions looks like production code.</p>
+<p><strong>On testing:</strong>
+Writing tests forced me to identify a real bug: <code>clean_text()</code> in <code>theme_extraction.py</code> did not handle <code>None</code> values — it would crash if any review was null. The test caught it before it could silently corrupt real data. This is exactly why finance employers value tested code.</p>
+<p><strong>On communication:</strong>
+A Streamlit dashboard changes the conversation from "here are some notebook charts" to "here is a tool you can use." Non-technical stakeholders can explore the data themselves instead of waiting for a data team to run queries. This shift from passive report to interactive tool is what makes a portfolio project stand out.</p>
+<p><strong>On scope:</strong>
+Starting with a project that already had real data (rather than building from scratch) meant all the time this week could be spent on engineering quality. This is the right approach for a capstone — pick your strongest existing work and make it production-ready.</p>
+<hr />
+<h2 id="10-future-work">10. Future Work</h2>
+<p>Given more time, the following would further strengthen the project:</p>
+<ol>
+<li>
+<p><strong>Fine-tuned model:</strong> Train a DistilBERT model specifically on Ethiopian banking reviews. Domain-specific fine-tuning would improve accuracy, especially for Ethiopian English patterns and banking terminology.</p>
+</li>
+<li>
+<p><strong>Amharic review support:</strong> Many reviews are written in Amharic. Adding multilingual sentiment analysis (using <code>xlm-roberta</code>) would capture a larger share of customer feedback.</p>
+</li>
+<li>
+<p><strong>Automated weekly pipeline:</strong> Schedule the scraper and pipeline to run weekly via GitHub Actions cron jobs, keeping the dashboard current without manual intervention.</p>
+</li>
+<li>
+<p><strong>Power BI connector:</strong> Export the processed data to a Power BI dashboard for executive reporting — standard tool in Ethiopian financial institutions.</p>
+</li>
+<li>
+<p><strong>Longitudinal analysis:</strong> Track sentiment trends over time per bank. Are things getting better or worse month-over-month? This time-series view is high value for management reporting.</p>
+</li>
+<li>
+<p><strong>Alert system:</strong> Trigger a Slack or email alert when a bank's negative review rate exceeds a threshold in a given week — turning the analytics into a real-time monitoring tool.</p>
+</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Devlin, J., Chang, M. W., Lee, K., &amp; Toutanova, K. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. <em>NAACL 2019</em>.</li>
+<li>Sanh, V., et al. (2019). DistilBERT, a distilled version of BERT. <em>NeurIPS 2019 Workshop</em>.</li>
+<li>Lundberg, S. M., &amp; Lee, S. I. (2017). A Unified Approach to Interpreting Model Predictions. <em>NeurIPS 2017</em>. (SHAP)</li>
+<li>HuggingFace Transformers Documentation: https://huggingface.co/docs/transformers</li>
+<li>Streamlit Documentation: https://docs.streamlit.io</li>
+<li>Google Python Style Guide: https://google.github.io/styleguide/pyguide.html</li>
+</ul>
+<hr />
+<p><em>This report was produced as part of the 10 Academy Week 12 Capstone — Finance Sector Portfolio Project.</em></p></body></html>
